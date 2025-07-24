@@ -4,9 +4,11 @@ import pandas as pd
 import datetime
 from tennis_model import project_match, monte_carlo_match_sim, format_projection_table, refresh_data
 
-DAILY_CSV_PATH = '/Users/derektmathews/Documents/daily_matchups.csv'
+# ✅ Google Sheet link converted to downloadable CSV
+GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1x65AHYRZAotcVzZhVqD6h0_XLGa-HmkjD8jWUOfYABA/gviz/tq?tqx=out:csv&sheet=Sheet1"
 
 st.set_page_config(page_title="Deke's Match Projections 🎾", page_icon="🎾")
+
 # Load and display logo and title
 col1, col2 = st.columns([1, 4])
 with col1:
@@ -15,8 +17,7 @@ with col1:
 with col2:
     st.markdown("<h1 style='padding-top: 20px;'>Topspin Analytics</h1>", unsafe_allow_html=True)
 
-
-
+# Refresh Elo data on first run or daily
 if 'last_refresh' not in st.session_state or st.session_state['last_refresh'].date() < datetime.datetime.now().date():
     with st.spinner('Refreshing Elo and surface data...'):
         refresh_data()
@@ -27,7 +28,7 @@ st.title("Deke's Match Projections 🎾")
 @st.cache_data(show_spinner=False)
 def load_daily_matchups():
     try:
-        return pd.read_csv(DAILY_CSV_PATH)
+        return pd.read_csv(GOOGLE_SHEET_CSV_URL)
     except Exception as e:
         st.error(f"Error loading daily matchups: {e}")
         return pd.DataFrame()
