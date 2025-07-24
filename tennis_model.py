@@ -31,16 +31,36 @@ def surface_win_pct(player, surface):
 def refresh_data():
     global elo_ratings, elo_by_surface, surface_stats
 
-    historical_files = glob(os.path.join(sackmann_path, 'atp_matches_*.csv'))
-    historical_dfs = [pd.read_csv(f, low_memory=False) for f in historical_files]
+    # Search for all csvs in both likely folders
+    historical_files = glob('data/atp_matches_*.csv') + glob('TennisProjectionApp/data/atp_matches_*.csv')
+    print(f"Found historical files: {historical_files}")
+
+    historical_dfs = []
+    for f in historical_files:
+        try:
+            df = pd.read_csv(f, low_memory=False)
+            historical_dfs.append(df)
+        except Exception as e:
+            print(f"Failed to read {f}: {e}")
+
+    if not historical_dfs:
+        raise ValueError("No historical data files found to concatenate.")
+
     historical_data = pd.concat(historical_dfs, ignore_index=True)
 
-    custom_2025 = pd.read_csv(os.path.join(custom_data_path, '2025.csv'))
+    # Load 2025 data
+    try:
+        custom_2025 = pd.read_csv('data/atp_matches_2025.csv')  # Adjust path if necessary
+    except Exception as e:
+        print(f"Error reading 2025 file: {e}")
+        custom_2025 = pd.DataFrame(columns=historical_data.columns)
 
+    # Align and combine
     common_columns = custom_2025.columns.tolist()
     historical_data_aligned = historical_data[common_columns]
     combined_data = pd.concat([historical_data_aligned, custom_2025], ignore_index=True)
 
+    # Clean and process dates
     combined_data['tourney_date'] = pd.to_numeric(combined_data['tourney_date'], errors='coerce')
     combined_data = combined_data.dropna(subset=['tourney_date'])
     combined_data['tourney_date'] = combined_data['tourney_date'].astype(int).astype(str)
@@ -48,7 +68,7 @@ def refresh_data():
     combined_data = combined_data.dropna(subset=['tourney_date'])
     combined_data = combined_data.sort_values('tourney_date').reset_index(drop=True)
 
-    # Reset Elo and stats
+    # Reset Elo ratings and surface stats
     elo_ratings = defaultdict(initialize_elo)
     elo_by_surface = defaultdict(initialize_elo)
     surface_stats = defaultdict(lambda: {'wins':0, 'losses':0})
@@ -69,13 +89,14 @@ def refresh_data():
         elo_ratings[l_name] += k_factor * (0 - l_exp)
 
         w_surface_exp = expected_score(w_surface_elo, l_surface_elo)
-        l_surface_exp = expected_score(l_surface_elo, w_surface_elo)
+        l_surface_exp = expected_score(l_surface_elo, w_surface_exp)
 
         elo_by_surface[(w_name, surface)] += k_factor * (1 - w_surface_exp)
         elo_by_surface[(l_name, surface)] += k_factor * (0 - l_surface_exp)
 
         surface_stats[(w_name, surface)]['wins'] += 1
         surface_stats[(l_name, surface)]['losses'] += 1
+
 
 
 def project_match(player1, player2, surface):
